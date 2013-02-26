@@ -68,6 +68,7 @@ class RabbitMqBus(Bus):
 		while (time.time() - start_time) < timeout:
 			reply = self.channel.basic_get(0, queue, no_ack = True)
 			if isinstance(reply[0], Basic.GetOk):
+				self.connection._timeouts = {}
 				return reply
 			time.sleep(sleep_interval)
 		raise BusTimeoutException

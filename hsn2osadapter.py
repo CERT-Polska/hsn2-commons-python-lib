@@ -73,9 +73,9 @@ class HSN2ObjectStoreAdapter(object):
 	'''
 	bus = None
 	missing = None
-	maxTries = 3
+	maxTries = 1
 	keepRunning = True
-	timeout = 5
+	timeout = 600
 
 	def __init__(self, bus = None):
 		'''
