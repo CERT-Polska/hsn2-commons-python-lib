@@ -66,7 +66,7 @@ class RabbitMqBus(Bus):
 
 		self.connection.add_timeout(timeout, self._timeout_callback)		
 		while (time.time() - start_time) < timeout:
-			reply = self.channel.basic_get(0, queue, no_ack = True)
+			reply = self.channel.basic_get(queue, no_ack = True)
 			if isinstance(reply[0], Basic.GetOk):
 				return reply
 			time.sleep(sleep_interval)
@@ -93,8 +93,9 @@ class RabbitMqBus(Bus):
 		try:
 			self.connection = pika.BlockingConnection(params)
 			self.channel = self.connection.channel()
-			self.channel.basic_qos(None, 0, 1, False)
-		except:
+			self.channel.basic_qos(0, 1, False)
+		except Exception as e:
+			logging.error(e)
 			raise BusException("Can't connect to RabbitMQ")
 
 	def sendCommand(self, dest, mtype, command, sync = 0, timeout = 0, corr_id = None):
