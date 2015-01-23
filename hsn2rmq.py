@@ -27,20 +27,24 @@ from hsn2bus import BusException
 from hsn2bus import BusTimeoutException
 from hsn2bus import MismatchedCorrelationIdException
 
+connection = None
+
 class NoAppIdException(Exception):
 	pass
 
 class RabbitMqBus(Bus):
 	host = "127.0.0.1"
 	port = 5672
-	connection = None
-	channel = None
+	
+	channelFw = None
+	channelOs = None
 	exchange = ''
-	timeout = 10
 	fw_queue = 'fw:l'
 	os_queue = 'os:l'
+	resp_queue = None
 	app_id = None
-
+	corr_id = None
+	
 	def __init__(self, host = "127.0.0.1", port = 5672, app_id = None):
 		'''
 		@param host: address where the bus is located
@@ -53,34 +57,31 @@ class RabbitMqBus(Bus):
 			raise NoAppIdException
 		else:
 			self.app_id = app_id
+		global connection
+		if connection is None:
+			params = pika.ConnectionParameters(
+				host = self.host,
+				port = self.port)
+			connection = pika.BlockingConnection(params)
+		self.openChannels()
 
-	def _wait_for_response(self, queue, timeout = 120):
+	def _wait_for_response(self, queue, on_response):
 		'''
 		Wait for a message to appear on the queue.
 		@param queue: The queue to monitor
-		@param timeout: How long to wait in seconds.
+		@param on_response: will be run, when message received.
 		@return: a tuple (method, properties, body)
 		'''
-		sleep_interval = 0.1
-		start_time = time.time()
-
-		self.connection.add_timeout(timeout, self._timeout_callback)		
-		while (time.time() - start_time) < timeout:
-			reply = self.channel.basic_get(queue, no_ack = True)
-			if isinstance(reply[0], Basic.GetOk):
-				self.connection._timeouts = {}
-				return reply
-			time.sleep(sleep_interval)
-		raise BusTimeoutException
-
+		self.channelFw.basic_consume(on_response, queue)
+		
 	def _timeout_callback(self):
 		'''
 		Timeout callback
 		'''
-		self.connection._timeouts = {}
+		connection._timeouts = {}
 		raise BusTimeoutException
 
-	def openFwChannel(self):
+	def openChannels(self):
 		'''
 		Connects to the bus.
 		'''
@@ -88,18 +89,19 @@ class RabbitMqBus(Bus):
 			print "starting with connection... %s:%d" % (self.host, self.port)
 		else:
 			logging.info("Attempting to connect to %s:%d" % (self.host, self.port))
-		params = pika.ConnectionParameters(
-				host = self.host,
-				port = self.port)
 		try:
-			self.connection = pika.BlockingConnection(params)
-			self.channel = self.connection.channel()
-			self.channel.basic_qos(0, 1, False)
+			self.channelFw = connection.channel()
+			self.channelFw.basic_qos(prefetch_count=1)
+			self.channelOs = connection.channel()
+			self.channelOs.basic_qos(prefetch_count=1)
+			result = self.channelOs.queue_declare(
+				durable = False, exclusive = True, auto_delete = True)
+			self.resp_queue = result.method.queue
 		except Exception as e:
-			logging.error(e)
+			logging.exception(e)
 			raise BusException("Can't connect to RabbitMQ")
 
-	def sendCommand(self, dest, mtype, command, sync = 0, timeout = 0, corr_id = None):
+	def sendCommand(self, dest, mtype, command, sync = 0, timeout = 0):
 		'''
 		Send a command over the bus.
 		@param dest: The name of the destination. Only "fw" and "os" are supported.
@@ -107,31 +109,26 @@ class RabbitMqBus(Bus):
 		@param command: The message that is to be sent.
 		@param sync: Whether to wait for a reply. 1 = True/0 = False
 		@param timeout: How long to wait for a reply. Only used if sync = 1.
-		@param corr_id: The correlation id to use. If None then it will be generated.
 		@return: A tuple containing the message type as a string and the message body in that order.
 		'''
+		self.corr_id = None
 		if dest == "fw":
 			routing_key = self.fw_queue
+			channel = self.channelFw
 		elif dest == "os":
 			routing_key = self.os_queue
+			channel = self.channelOs
 		else:
 			raise Exception("Unknown destination: %s" % str(dest))
 
-		if timeout <= 0:
-			timeout = self.timeout
-		if self.channel is None:
-			raise BusException
-
 		if sync is 1:
-			result = self.channel.queue_declare(
-				durable = False, exclusive = True, auto_delete = True)
-			resp_queue = result.method.queue
-			if corr_id is None:
-				corr_id = "%s-%s" % (mtype, ''.join(sample(string.digits, 10)))
+			resp_queue = self.resp_queue
+			if self.corr_id is None:
+				self.corr_id = "%s-%s" % (mtype, ''.join(sample(string.digits, 10)))
 		else:
 			resp_queue = None
 		
-		self.channel.basic_publish(
+		channel.basic_publish(
 			exchange = self.exchange,
 			routing_key = routing_key,
 			properties = pika.BasicProperties(
@@ -139,26 +136,32 @@ class RabbitMqBus(Bus):
 				content_type = "application/hsn2+protobuf",
 				app_id = self.app_id,
 				reply_to = resp_queue,
-				correlation_id = corr_id),
+				correlation_id = self.corr_id),
 			body = None if command is "" else command.SerializeToString());
 		
 
 		if sync is 1:
-			(method, properties, body) = self._wait_for_response(resp_queue, timeout)
-			if corr_id != properties.correlation_id and self.app_id != "cli":
-				raise MismatchedCorrelationIdException("Sent:%s, Received:%s" % (corr_id, properties.correlation_id))
-			mtype = properties.type
-			self.channel.queue_delete(queue = resp_queue)
-			return (mtype, body)
+			channel.basic_consume(self.on_response, resp_queue)
+			return (self.mtype, self.body)
 
+	def on_response(self, ch, method, properties, body):
+		ch.basic_ack(delivery_tag = method.delivery_tag)
+		if self.corr_id != properties.correlation_id and self.app_id != "cli":
+			raise MismatchedCorrelationIdException("Sent:%s, Received:%s" % (self.corr_id, properties.correlation_id))
+		self.mtype = properties.type
+		self.body = body
+		
 	def close(self):
 		'''
 		Closes the connection with the bus.
 		'''
-		if self.connection is not None:
-			self.connection.close()
-		self.connection = None
-		self.channel = None
+		
+		global connection
+		if connection is not None:
+			connection.close()
+		connection = None
+		self.channelFw = None
+		self.channelOs = None
 
 	def setFWQueue(self, queue):
 		self.fw_queue = queue
@@ -174,13 +177,16 @@ class RabbitMqBus(Bus):
 	            def consume(self, type, body):
 	                            print "[X] consuming... %s" % type
 	    '''
-	    result = self.channel.queue_declare(exclusive=True)
+		
+	    channel = connection.channel()
+	    channel.basic_qos(prefetch_count=1)
+	    result = channel.queue_declare(exclusive=True)
 	    queue_name = result.method.queue
 	    consumer = RabbitMqConsumer(callback)
-	    self.channel.queue_bind(exchange=monitoring,
+	    channel.queue_bind(exchange=monitoring,
                        queue=queue_name)
-	    self.channel.basic_consume(consumer.consume, queue=queue_name)
-	    self.channel.start_consuming()
+	    channel.basic_consume(consumer.consume, queue=queue_name)
+	    channel.start_consuming()
 
 class RabbitMqConsumer(object):
 

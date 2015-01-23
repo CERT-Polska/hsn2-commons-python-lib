@@ -134,7 +134,7 @@ class HSN2ObjectStoreAdapter(object):
 		objReq.type = enumwrap.getValue(objReq, "RequestType", "GET")
 		for obj in objects:
 			objReq.objects.append(obj)
-		logging.info("requesting objects" + str(objects))
+		logging.info("requesting objects " + str(objects) + " from " + str(jobId))
 		objResp = self.sendRequest(objReq)
 		self.missing = objResp.missing
 		currentObjects = ow.toObjects(objResp.data)

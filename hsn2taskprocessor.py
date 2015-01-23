@@ -74,10 +74,7 @@ class HSN2TaskProcessor(Process):
 	currentTask = None
 	objects = None
 	newObjects = None
-	fails = 0
-	maxFails = 5
 	lastMsg = None
-	connected = False
 
 	def __init__(self, connector, datastore, serviceName, serviceQueue, objectStoreQueue, **extra):
 		'''
@@ -113,78 +110,75 @@ class HSN2TaskProcessor(Process):
 
 		while self.keepRunning:
 			try:
-				if not self.connected:
-					self.fwBus.openFwChannel()
-					if self.currentTask is not None:
-						self.taskError('DEFUNCT', str(self.lastMsg))
-						self.taskClear()
-					self.connected = True
-					logging.info("Connection opened")
-				self.lastMsg = None
 				self.taskReceive()
-				self.fails = 0
-				self.taskAccept()
-				self.objects = self.osAdapter.objectsGet(self.currentTask.job, [self.currentTask.object])
-				warnings = self.taskProcess()
-				if warnings is None:
-					warnings = list()
-				self.osAdapter.objectsUpdate(self.currentTask.job, self.objects, overwrite = True)
-				self.taskComplete(warnings)
-				self.taskClear()
-			except BusTimeoutException:
-				logging.debug("No commands yet")
-			except MismatchedCorrelationIdException as (e):
-				self.taskError('DEFUNCT', 'Mismatched correlation ids: %s.' % e.message)
-				self.taskClear()
-			except BadTypeException as (mtype):
-				self.taskError('DEFUNCT', 'Bad message type received %s.' % mtype)
-				self.taskClear()
-			except ParamException as (e):
-				self.taskError('PARAMS', e.message)
-				self.taskClear()
-			except ObjectStoreException as (e):
-				self.taskError('OBJ_STORE', e.message)
-				self.taskClear()
-			except DataStoreException as (e):
-				self.taskError('DATA_STORE', e.message)
-				self.taskClear()
-			except ProcessingException as (e):
-				self.taskError('DEFUNCT', e.message)
-				self.taskClear()
-			except InputException as (e):
-				self.taskError('INPUT', e.message)
-				self.taskClear()
 			except (BusException, AMQPError) as (e):
-				self.connected = False
 				self.lastMsg = e.message
-				self.fails += 1
-				sleep(1)
-				logging.error("%s - After retry - %d of %d" % (str(e), self.fails, self.maxFails))
-				if self.fails >= self.maxFails:
-					self.keepRunning = False
+				logging.exception("EXCEPTION - %s - %s" % (e.__class__, e))
+				break
 			except Exception as e:
 				self.lastMsg = e.message
-				logging.error("EXCEPTION - %s - %s" % (e.__class__, e))
+				logging.exception("EXCEPTION - %s - %s" % (e.__class__, e))
+				break
 			except:
 				self.lastMsg = "Uncaught exception"
-				logging.error("Uncaught exception")
-		if self.currentTask is not None:
-			self.taskError('DEFUNCT', "Processor termination")
-			self.taskClear()
+				logging.exception("Uncaught exception")
+				break
+			
 		self.fwBus.close()
 		self.cleanup()
+
+	def process(self, ch, method, properties, body):
+		try:
+			if properties.type != "TaskRequest":
+				raise BadTypeException(properties.type)
+			tr = TaskRequest()
+			tr.ParseFromString(body)
+			self.currentTask = tr
+			self.newObjects = []
+			self.taskAccept()
+			self.objects = self.osAdapter.objectsGet(self.currentTask.job, [self.currentTask.object])
+			warnings = self.taskProcess()
+			if warnings is None:
+				warnings = list()
+			self.osAdapter.objectsUpdate(self.currentTask.job, self.objects, overwrite = True)
+			self.taskComplete(warnings)
+			self.taskClear()
+			ch.basic_ack(delivery_tag = method.delivery_tag)
+		except MismatchedCorrelationIdException as (e):
+			self.taskError('DEFUNCT', 'Mismatched correlation ids: %s.' % e.message)
+			ch.basic_ack(delivery_tag = method.delivery_tag)
+			self.taskClear()
+		except BadTypeException as (mtype):
+			self.taskError('DEFUNCT', 'Bad message type received %s.' % mtype)
+			ch.basic_ack(delivery_tag = method.delivery_tag)
+			self.taskClear()
+		except ParamException as (e):
+			self.taskError('PARAMS', e.message)
+			ch.basic_ack(delivery_tag = method.delivery_tag)
+			self.taskClear()
+		except ObjectStoreException as (e):
+			self.taskError('OBJ_STORE', e.message)
+			ch.basic_ack(delivery_tag = method.delivery_tag)
+			self.taskClear()
+		except DataStoreException as (e):
+			self.taskError('DATA_STORE', e.message)
+			ch.basic_ack(delivery_tag = method.delivery_tag)
+			self.taskClear()
+		except ProcessingException as (e):
+			self.taskError('DEFUNCT', e.message)
+			ch.basic_ack(delivery_tag = method.delivery_tag)
+			self.taskClear()
+		except InputException as (e):
+			self.taskError('INPUT', e.message)
+			ch.basic_ack(delivery_tag = method.delivery_tag)
+			self.taskClear()
 
 	def taskReceive(self):
 		'''
 		Receive a task from the service queue and assign it to the current task.
 		'''
-		(method, properties, body) = self.fwBus._wait_for_response(self.serviceQueue, 3)
-		if properties.type != "TaskRequest":
-			raise BadTypeException(properties.type)
-		tr = TaskRequest()
-		tr.ParseFromString(body)
-		self.currentTask = tr
-		self.newObjects = []
+		self.fwBus._wait_for_response(self.serviceQueue, self.process)
+		
 
 	def taskAccept(self):
 		'''

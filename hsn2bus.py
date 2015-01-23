@@ -43,13 +43,13 @@ class MismatchedCorrelationIdException(Exception):
 class Bus(object):
 	"Abstract Bus class"
 
-	def openFwChannel(self):
+	def openChannels(self):
 		'''
 		Connects to the bus.
 		'''
 		raise Exception("This method need to be implemented in an appropriate class!")
 
-	def sendCommand(self, dest, mtype, command, sync = 0, timeout = 0, corr_id = None):
+	def sendCommand(self, dest, mtype, command, sync = 0, timeout = 0):
 		'''
 		Send a command over the bus.
 		@param dest: The name of the destination. Only "fw" and "os" are supported.
@@ -57,7 +57,6 @@ class Bus(object):
 		@param command: The message that is to be sent.
 		@param sync: Whether to wait for a reply. 1 = True/0 = False
 		@param timeout: How long to wait for a reply. Only used if sync = 1.
-		@param corr_id: The correlation id to use. If None then it will be generated.
 		@return: A tuple containing the message type as a string and the message body in that order.
 		'''
 		raise Exception("This method need to be implemented in an appropriate class!")
