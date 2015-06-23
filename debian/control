@@ -1,9 +1,11 @@
-Package: python-hsn2-lib
-Version: {VER}
+Source: python-hsn2-lib
 Section: unknown
 Priority: optional
+Maintainer: CERT Polska <info@cert.pl>
+Build-Depends: debhelper (>= 8.0.0), python-all (>= 2.6.6-3), dh-python
+Standards-Version: 3.9.3
+
+Package: python-hsn2-lib
 Architecture: all
-Depends: python-hsn2-proto
-Maintainer: Wojciech Michalak (wojciech.michalak@nask.pl)
+Depends: ${misc:Depends}, ${python:Depends}, python-hsn2-proto
 Description: HSN2 python common modules.
-Distribution: {DEBIAN_DIST}
