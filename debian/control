@@ -2,7 +2,7 @@ Source: python-hsn2-lib
 Section: unknown
 Priority: optional
 Maintainer: CERT Polska <info@cert.pl>
-Build-Depends: debhelper (>= 8.0.0), python-all (>= 2.6.6-3), dh-python
+Build-Depends: debhelper (>= 8.0.0), python-all (>= 2.6.6-3), python-setuptools
 Standards-Version: 3.9.3
 
 Package: python-hsn2-lib
