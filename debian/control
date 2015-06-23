@@ -7,5 +7,5 @@ Standards-Version: 3.9.3
 
 Package: python-hsn2-lib
 Architecture: all
-Depends: ${misc:Depends}, ${python:Depends}, python-hsn2-proto
+Depends: ${misc:Depends}, ${python:Depends}, python-hsn2-proto, python-pika
 Description: HSN2 python common modules.
