@@ -1,11 +1,11 @@
-Source: python-hsn2-lib
-Section: unknown
+Source: python-hsn2-commons
+Section: python
 Priority: optional
 Maintainer: CERT Polska <info@cert.pl>
 Build-Depends: debhelper (>= 8.0.0), python-all (>= 2.6.6-3), python-setuptools
 Standards-Version: 3.9.3
 
-Package: python-hsn2-lib
+Package: python-hsn2-commons
 Architecture: all
 Depends: ${misc:Depends}, ${python:Depends}, python-hsn2-proto, python-pika
 Description: HSN2 python common modules.
