@@ -17,12 +17,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import logging
 from multiprocessing.process import active_children
 from os import path
+from time import sleep
+import logging
 import signal
 import sys
-from time import sleep
 
 from hsn2_commons import argparsealiases as argparse
 
@@ -42,7 +42,7 @@ class HSN2Service(object):
     datastore = "localhost:8080"
     objectStoreQueue = "os:l"
     maxThreads = 1
-    processList = []
+    processList = None
     keepRunning = True
     nugget = None
     taskProcessorClass = None
@@ -52,6 +52,7 @@ class HSN2Service(object):
         '''
         Assigns the processor class that this service will use.
         '''
+        self.processList = []
         self.taskProcessorClass = taskProcessorClass
 
     def standardOptions(self):

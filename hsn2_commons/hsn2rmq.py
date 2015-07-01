@@ -15,11 +15,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from random import sample
 import logging
 import multiprocessing
-import pika
-from random import sample
 import string
+
+import pika
 
 from hsn2_commons.hsn2bus import Bus
 from hsn2_commons.hsn2bus import BusException
@@ -53,7 +54,7 @@ class RabbitMqBus(Bus):
         @param app_id: the name of the service using the adapter. Used for recognizing the console.
         '''
         self.host = host
-        self.port = 5672 if port == None else int(port)
+        self.port = 5672 if port is None else int(port)
         if app_id is None:
             raise NoAppIdException
         else:

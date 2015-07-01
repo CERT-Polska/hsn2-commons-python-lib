@@ -18,11 +18,11 @@
 import datetime
 import sys
 
+from hsn2_protobuf import Config_pb2
+from hsn2_protobuf import Info_pb2
 from hsn2_protobuf import Jobs_pb2
 from hsn2_protobuf import Service_pb2
 from hsn2_protobuf import Workflows_pb2
-from hsn2_protobuf import Config_pb2
-from hsn2_protobuf import Info_pb2
 
 
 class CommandDispatcherMessage(Exception):
@@ -66,7 +66,7 @@ class CommandDispatcher(object):
             subcommand = self.cliargs.__dict__.get(command)
             subcommand = aliases.getFullName(subcommand, command)
             fun = fun.get(subcommand)
-        if (fun != None):
+        if (fun is not None):
             return fun(self)
         else:
             msg = "ERROR: incorrect command '%s'" % command
@@ -80,8 +80,7 @@ class CommandDispatcher(object):
         Submits a job for processing.
         '''
         if self.verbose:
-            print("The job descriptor (workflow=%s) is outgoing..." %
-                  self.cliargs.jd_workflow)
+            print("The job descriptor (workflow=%s) is outgoing..." % self.cliargs.jd_workflow)
         # setup service parameters
         servicesParams = {}
         if (self.cliargs.param is not False):

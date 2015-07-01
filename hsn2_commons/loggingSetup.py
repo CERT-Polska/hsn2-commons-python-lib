@@ -35,7 +35,7 @@ def setupLogging(logPath=None, logToStream=True, logLevel=logging.DEBUG):
 
     if logPath is not None:
         logPath = os.path.abspath(logPath)
-        (logDir, logFile) = os.path.split(logPath)
+        logDir = os.path.dirname(logPath)
         if not os.path.exists(logDir):
             os.mkdir(logDir)
         fileHandler = logging.FileHandler(logPath)

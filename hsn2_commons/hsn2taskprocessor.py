@@ -17,13 +17,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import logging
 from multiprocessing import Process
-from pika.exceptions import AMQPError
-import signal
 from time import sleep
+import logging
+import signal
 
-from hsn2_protobuf import Process_pb2
+from pika.exceptions import AMQPError
+
 from hsn2_commons import hsn2enumwrapper as enumwrap
 from hsn2_commons import hsn2objectwrapper as ow
 from hsn2_commons.hsn2bus import Bus
@@ -32,13 +32,7 @@ from hsn2_commons.hsn2bus import MismatchedCorrelationIdException
 from hsn2_commons.hsn2dsadapter import DataStoreException, HSN2DataStoreAdapter
 from hsn2_commons.hsn2objectwrapper import BadValueException
 from hsn2_commons.hsn2osadapter import ObjectStoreException, HSN2ObjectStoreAdapter
-
-
-'''
-Created on 23-03-2012
-
-@author: wojciechm
-'''
+from hsn2_protobuf import Process_pb2
 
 
 class ProcessingException(Exception):
@@ -113,10 +107,6 @@ class HSN2TaskProcessor(Process):
         while self.keepRunning:
             try:
                 self.taskReceive()
-            except (BusException, AMQPError) as (e):
-                self.lastMsg = e.message
-                logging.exception("EXCEPTION - %s - %s" % (e.__class__, e))
-                break
             except Exception as e:
                 self.lastMsg = e.message
                 logging.exception("EXCEPTION - %s - %s" % (e.__class__, e))
@@ -148,33 +138,33 @@ class HSN2TaskProcessor(Process):
             self.taskComplete(warnings)
             self.taskClear()
             ch.basic_ack(delivery_tag=method.delivery_tag)
-        except MismatchedCorrelationIdException as (e):
+        except MismatchedCorrelationIdException as exc:
             self.taskError(
-                'DEFUNCT', 'Mismatched correlation ids: %s.' % e.message)
+                'DEFUNCT', 'Mismatched correlation ids: %s.' % exc.message)
             ch.basic_ack(delivery_tag=method.delivery_tag)
             self.taskClear()
-        except BadTypeException as (mtype):
-            self.taskError('DEFUNCT', 'Bad message type received %s.' % mtype)
+        except BadTypeException as exc:
+            self.taskError('DEFUNCT', 'Bad message type received %s.' % exc)
             ch.basic_ack(delivery_tag=method.delivery_tag)
             self.taskClear()
-        except ParamException as (e):
-            self.taskError('PARAMS', e.message)
+        except ParamException as exc:
+            self.taskError('PARAMS', exc.message)
             ch.basic_ack(delivery_tag=method.delivery_tag)
             self.taskClear()
-        except ObjectStoreException as (e):
-            self.taskError('OBJ_STORE', e.message)
+        except ObjectStoreException as exc:
+            self.taskError('OBJ_STORE', exc.message)
             ch.basic_ack(delivery_tag=method.delivery_tag)
             self.taskClear()
-        except DataStoreException as (e):
-            self.taskError('DATA_STORE', e.message)
+        except DataStoreException as exc:
+            self.taskError('DATA_STORE', exc.message)
             ch.basic_ack(delivery_tag=method.delivery_tag)
             self.taskClear()
-        except ProcessingException as (e):
-            self.taskError('DEFUNCT', e.message)
+        except ProcessingException as exc:
+            self.taskError('DEFUNCT', exc.message)
             ch.basic_ack(delivery_tag=method.delivery_tag)
             self.taskClear()
-        except InputException as (e):
-            self.taskError('INPUT', e.message)
+        except InputException as exc:
+            self.taskError('INPUT', exc.message)
             ch.basic_ack(delivery_tag=method.delivery_tag)
             self.taskClear()
 
@@ -197,10 +187,10 @@ class HSN2TaskProcessor(Process):
         return True
 
     def taskProcess(self):
-        '''	
+        '''
         This method should be overridden with what is to be performed.
         The current task is available at self.currentTask.
-        @return: A list of warnings. 
+        @return: A list of warnings.
         '''
         self.objects[0].addFlag("Nice")
         self.objects[0].addTime("Pork", 111)
@@ -266,7 +256,7 @@ class HSN2TaskProcessor(Process):
     def cleanup(self):
         '''
         This method is meant to be overridden.
-        It is called in the shutdown procedure and should contain all relevant cleanup calls. 
+        It is called in the shutdown procedure and should contain all relevant cleanup calls.
         '''
         pass
 

@@ -96,11 +96,11 @@ class Bus(object):
     @staticmethod
     def createConfigurableBus(logger, config, app_id='unknown'):
         '''
-        Intializes the bus adapter with configuration parameters loaded from the supplied configuration file. 
+        Intializes the bus adapter with configuration parameters loaded from the supplied configuration file.
         This method is used solely by the management components (HSN2 Console + WebGUI).
         @param logger: A Logger object.
         @param config: A ConfigParser object containing the loaded configuration file.
-        @return: Bus object 
+        @return: Bus object
         '''
         busName = config.get("core", "mq")
         if busName == "rabbitmq":

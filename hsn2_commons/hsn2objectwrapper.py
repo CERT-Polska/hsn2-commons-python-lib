@@ -17,9 +17,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from hsn2_commons import hsn2enumwrapper as enumwrap
 from hsn2_protobuf import Object_pb2
 from hsn2_protobuf import Resources_pb2
-from hsn2_commons import hsn2enumwrapper as enumwrap
 
 
 class BadValueException(ValueError):
@@ -144,7 +144,7 @@ class Object():
         self.addAttribute("TIME", name, value)
 
     def addString(self, name, value):
-        if type(value) == unicode:
+        if isinstance(value, unicode):
             self.addAttribute("STRING", name, value)
         else:
             self.addAttribute("STRING", name, str(value))
@@ -230,7 +230,7 @@ def fromObject(intObject):
         attr.name = attr_name
         attr.type = enumwrap.getValue(attr, "Type", value_type)
         value_name = types.get(value_type)
-        if value_name != None:
+        if value_name is not None:
             if value_type == "BYTES":
                 ref = getattr(intObject, attr_name)
                 (refKey, refStore) = ref.getBoth()
@@ -380,7 +380,7 @@ def fromBehaviorList(fileP):
     Converts a protocol buffers BehaviorList message to a list of dictionaries.
     Each Behavior should have a "description_text" attribute defined.
     Optionally it can have a "discovery_method" attribute defined.
-    @param fileP: An object containing the message. It needs to support the read method. 
+    @param fileP: An object containing the message. It needs to support the read method.
     @return: The list of dictionaries.
     '''
     bList = Resources_pb2.BehaviorsList()
@@ -417,7 +417,7 @@ def fromJSContextList(fileP):
     '''
     Converts a protocol buffers JSContextList message to a list of dictionaries.
     Each JSContext should have "id", "source", "eval" attributes defined.
-    @param fileP: An object containing the message. It needs to support the read method. 
+    @param fileP: An object containing the message. It needs to support the read method.
     @return: The list of dictionaries.
     '''
     cList = Resources_pb2.JSContextList()

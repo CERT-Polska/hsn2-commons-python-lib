@@ -17,18 +17,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-'''
-Created on 05-04-2012
-
-@author: wojciechm
-'''
 import logging
 
-from hsn2_protobuf import ObjectStore_pb2
 from hsn2_commons import hsn2enumwrapper as enumwrap
 from hsn2_commons import hsn2objectwrapper as ow
 from hsn2_commons.hsn2bus import BadMessageException, BusTimeoutException
 from hsn2_commons.hsn2rmq import RabbitMqBus
+from hsn2_protobuf import ObjectStore_pb2
 
 
 class NoBusException(Exception):
