@@ -368,7 +368,7 @@ def toBehaviorList(normalList):
     bList = Resources_pb2.BehaviorsList()
     for behavior in normalList:
         beh = bList.behavior.add()
-        beh.description_text = str(behavior.get("description_text", ""))
+        beh.description_text = unicode(behavior.get("description_text", ""))
         val = behavior.get("discovery_method")
         if val is not None:
             beh.discovery_method = str(val)
@@ -408,7 +408,7 @@ def toJSContextList(normalList):
     for context in normalList:
         cont = cList.contexts.add()
         cont.id = int(context.get("id"))
-        cont.source = str(context.get("source"))
+        cont.source = unicode(context.get("source"))
         cont.eval = toBoolValue(context.get("eval"))
     return cList
 

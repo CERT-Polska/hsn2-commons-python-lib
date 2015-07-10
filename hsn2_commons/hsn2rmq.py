@@ -26,6 +26,7 @@ from hsn2_commons.hsn2bus import Bus
 from hsn2_commons.hsn2bus import BusException
 from hsn2_commons.hsn2bus import BusTimeoutException
 from hsn2_commons.hsn2bus import MismatchedCorrelationIdException
+import time
 
 
 class NoAppIdException(Exception):
@@ -144,10 +145,15 @@ class RabbitMqBus(Bus):
         )
 
         if sync is 1:
-            method, properties, body = channel.basic_get(queue=resp_queue)
-            print method, properties, body
-            print method.__dict__
-            print bool(method)
+            properties = None
+            wait_start = time.time()
+            while True:
+                method, properties, body = channel.basic_get(queue=resp_queue)
+                if properties:
+                    break
+                if time.time() - wait_start > timeout:
+                    raise BusTimeoutException()
+            
             return self.on_response(channel, method, properties, body)
 
     def on_response(self, ch, method, properties, body):
@@ -157,6 +163,7 @@ class RabbitMqBus(Bus):
                 "Sent:%s, Received:%s" % (self.corr_id, properties.correlation_id))
         self.mtype = properties.type
         self.body = body
+        return properties.type, body
 
     def close(self):
         '''

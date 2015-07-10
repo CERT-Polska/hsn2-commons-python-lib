@@ -302,8 +302,7 @@ class CommandDispatcher(object):
         '''
         if self.verbose:
             print "The ping is outgoing..."
-        (mtype, resp) = self.bus.sendCommand("fw", "Ping", "",
-                                             1, self.timeout)
+        (mtype, resp) = self.bus.sendCommand("fw", "Ping", "", 1, self.timeout)
         if (mtype == "Ping" and resp == "pong"):
             if self.verbose:
                 print "The framework is alive."
@@ -361,7 +360,7 @@ class CommandDispatcher(object):
         if self.cliargs.file:
             aw.content = unicode(self.cliargs.file.read().decode('utf-8'))
         else:
-            aw.content = ''.join(sys.stdin.readlines())
+            raise ValueError("--file argument required")
         aw.overwrite = self.cliargs.overwrite
         print "Uploading workflow to framework."
         (mtype, resp) = self.bus.sendCommand("fw", "WorkflowUploadRequest",
