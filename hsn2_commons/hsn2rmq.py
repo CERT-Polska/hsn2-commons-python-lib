@@ -158,7 +158,7 @@ class RabbitMqBus(Bus):
 
     def on_response(self, ch, method, properties, body):
         ch.basic_ack(delivery_tag=method.delivery_tag)
-        if self.corr_id != properties.correlation_id and self.app_id != "cli":
+        if self.corr_id and self.corr_id != properties.correlation_id and self.app_id != "cli":
             raise MismatchedCorrelationIdException(
                 "Sent:%s, Received:%s" % (self.corr_id, properties.correlation_id))
         self.mtype = properties.type
