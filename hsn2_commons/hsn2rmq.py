@@ -21,6 +21,7 @@ import multiprocessing
 import string
 
 import pika
+logging.getLogger("pika").setLevel(logging.WARNING)
 
 from hsn2_commons.hsn2bus import Bus
 from hsn2_commons.hsn2bus import BusException
