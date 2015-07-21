@@ -371,7 +371,7 @@ def toBehaviorList(normalList):
         beh.description_text = unicode(behavior.get("description_text", ""))
         val = behavior.get("discovery_method")
         if val is not None:
-            beh.discovery_method = str(val)
+            beh.discovery_method = unicode(val)
     return bList
 
 
@@ -444,10 +444,10 @@ def toYaraMatchesList(matches):
     pbmatches = Resources_pb2.YaraMatchesList()
     for match in matches:
         newmatch = pbmatches.matches.add()
-        newmatch.rule = str(match.get("rule", ""))
+        newmatch.rule = unicode(match.get("rule", ""))
         namespace = match.get("namespace")
         if namespace is not None:
-            newmatch.namespace = str(namespace)
+            newmatch.namespace = unicode(namespace)
     return pbmatches
 
 
