@@ -31,7 +31,7 @@ def setupLogging(logPath=None, logToStream=True, logLevel=logging.DEBUG):
     log = logging.getLogger()
     log.handlers = list()  # remove existing handlers
     log.setLevel(_checkLevel(logLevel))
-    logFormatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
+    logFormatter = logging.Formatter("%(asctime)s [%(process)d] %(levelname)s %(message)s")
 
     if logPath is not None:
         logPath = os.path.abspath(logPath)
