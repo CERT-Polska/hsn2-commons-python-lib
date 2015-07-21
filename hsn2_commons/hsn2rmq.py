@@ -163,6 +163,9 @@ class RabbitMqBus(Bus):
             raise MismatchedCorrelationIdException(
                 "Sent:%s, Received:%s" % (self.corr_id, properties.correlation_id))
         self.mtype = properties.type
+        if type(body) == unicode:
+            data = bytearray(body, "utf-8")
+            body = bytes(data)
         self.body = body
         return properties.type, body
 
