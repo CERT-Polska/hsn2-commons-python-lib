@@ -2,7 +2,7 @@
 
 case "$1" in
     purge|remove|upgrade|disappear)
-        pyclean -p python-hsn2-lib || true
+        pyclean -p python-hsn2-commons || true
     ;;
 
     *)
