@@ -75,7 +75,12 @@ class RabbitMqBus(Bus):
         @param on_response: will be run, when message received.
         @return: a tuple (method, properties, body)
         '''
-        self.channelFw.basic_consume(on_response, queue)
+        def _pre_response(ch, method, properties, body):
+            if type(body) == unicode:
+                data = bytearray(body, "utf-8")
+                body = bytes(data)
+            return on_response(ch, method, properties, body)
+        self.channelFw.basic_consume(_pre_response, queue)
 
     def _timeout_callback(self):
         '''
