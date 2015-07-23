@@ -38,7 +38,6 @@ class RabbitMqBus(Bus):
     host = "127.0.0.1"
     port = 5672
     connection = None
-    connection_lock = multiprocessing.RLock()
 
     channelFw = None
     channelOs = None
@@ -61,11 +60,8 @@ class RabbitMqBus(Bus):
             raise NoAppIdException
         else:
             self.app_id = app_id
-        with self.connection_lock:
-            if not RabbitMqBus.connection:
-                params = pika.ConnectionParameters(
-                    host=self.host, port=self.port)
-                RabbitMqBus.connection = pika.BlockingConnection(params)
+        params = pika.ConnectionParameters(host=self.host, port=self.port)
+        self.connection = pika.BlockingConnection(params)
         self.openChannels()
 
     def _wait_for_response(self, queue, on_response):
@@ -86,7 +82,7 @@ class RabbitMqBus(Bus):
         '''
         Timeout callback
         '''
-        RabbitMqBus.connection._timeouts = {}
+        self.connection._timeouts = {}
         raise BusTimeoutException
 
     def openChannels(self):
@@ -99,8 +95,8 @@ class RabbitMqBus(Bus):
             logging.info("Attempting to connect to %s:%d" %
                          (self.host, self.port))
         try:
-            self.channelFw = RabbitMqBus.connection.channel()
-            self.channelOs = RabbitMqBus.connection.channel()
+            self.channelFw = self.connection.channel()
+            self.channelOs = self.connection.channel()
             self.channelFw.basic_qos(prefetch_count=1)
             self.channelOs.basic_qos(prefetch_count=1)
             result = self.channelOs.queue_declare(
@@ -179,10 +175,9 @@ class RabbitMqBus(Bus):
         Closes the connection with the bus.
         '''
 
-        with self.connection_lock:
-            if RabbitMqBus.connection is not None:
-                RabbitMqBus.connection.close()
-            RabbitMqBus.connection = None
+        if self.connection is not None:
+            self.connection.close()
+        self.connection = None
         self.channelFw = None
         self.channelOs = None
 
@@ -201,7 +196,7 @@ class RabbitMqBus(Bus):
                                 print "[X] consuming... %s" % type
         '''
 
-        channel = RabbitMqBus.connection.channel()
+        channel = self.connection.channel()
         channel.basic_qos(prefetch_count=1)
         result = channel.queue_declare(exclusive=True)
         queue_name = result.method.queue

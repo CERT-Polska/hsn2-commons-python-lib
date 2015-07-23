@@ -33,6 +33,8 @@ from hsn2_commons.hsn2dsadapter import DataStoreException, HSN2DataStoreAdapter
 from hsn2_commons.hsn2objectwrapper import BadValueException
 from hsn2_commons.hsn2osadapter import ObjectStoreException, HSN2ObjectStoreAdapter
 from hsn2_protobuf import Process_pb2
+import select
+import errno
 
 
 class ProcessingException(Exception):
@@ -107,6 +109,12 @@ class HSN2TaskProcessor(Process):
         while self.keepRunning:
             try:
                 self.taskReceive()
+            except select.error as e:
+                if e[0] != errno.EINTR:
+                    raise
+            except IOError as ioe:
+                if ioe.errno != errno.EINTR:
+                    raise
             except Exception as e:
                 self.lastMsg = e.message
                 logging.exception("EXCEPTION - %s - %s" % (e.__class__, e))

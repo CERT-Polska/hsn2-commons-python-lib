@@ -113,17 +113,18 @@ class HSN2Service(object):
         Starts the task processors.
         @param params: Paramters which are to be passed to the task processors.
         '''
-        i = 0
+        index = 0
         if self.taskProcessorClass is None:
             raise NoTaskProcessorException()
         maxThreads = params.__dict__.pop('maxThreads')
         self.serviceName = params.__dict__.get('serviceName')
         try:
-            while i < maxThreads:
-                p = self.taskProcessorClass(**params.__dict__)
-                p.start()
-                self.processList.append(p)
-                i += 1
+            while index < maxThreads:
+                process = self.taskProcessorClass(**params.__dict__)
+                self.processList.append(process)
+                index += 1
+            for process in self.processList:
+                process.start()
         except Exception as e:
             logging.error(e.message)
             logging.error(e.getStackTrace())
@@ -203,7 +204,8 @@ def startService(serviceType=HSN2Service, taskProcessor=None):
         service.start(cliargs)
         service.run()
         service.stop()
-    except:
+    except Exception as exc:
+        logging.exception(exc)
         exit(-1)
 
 if __name__ == '__main__':
