@@ -147,8 +147,7 @@ class HSN2TaskProcessor(Process):
             self.taskClear()
             ch.basic_ack(delivery_tag=method.delivery_tag)
         except MismatchedCorrelationIdException as exc:
-            self.taskError(
-                'DEFUNCT', 'Mismatched correlation ids: %s.' % exc.message)
+            self.taskError('DEFUNCT', 'Mismatched correlation ids: %s.' % exc.message)
             ch.basic_ack(delivery_tag=method.delivery_tag)
             self.taskClear()
         except BadTypeException as exc:

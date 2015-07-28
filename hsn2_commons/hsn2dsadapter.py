@@ -33,6 +33,9 @@ class HSN2DataStoreAdapter():
         '''
         @param address: URL to the Data Store.
         '''
+        prefix = "http://"
+        if address.startswith(prefix):
+            address =  address[len(prefix):]
         self.address = address
 
     def putBytes(self, bytes_, job_id):
