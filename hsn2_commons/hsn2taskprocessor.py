@@ -31,7 +31,9 @@ from hsn2_commons.hsn2bus import BusException
 from hsn2_commons.hsn2bus import MismatchedCorrelationIdException
 from hsn2_commons.hsn2dsadapter import DataStoreException, HSN2DataStoreAdapter
 from hsn2_commons.hsn2objectwrapper import BadValueException
-from hsn2_commons.hsn2osadapter import ObjectStoreException, HSN2ObjectStoreAdapter
+from hsn2_commons.hsn2osadapter import ObjectStoreException
+from hsn2_commons.hsn2osadapter import ObjectStoreTerminationException
+from hsn2_commons.hsn2osadapter import HSN2ObjectStoreAdapter
 from hsn2_protobuf import Process_pb2
 import select
 import errno
@@ -105,10 +107,14 @@ class HSN2TaskProcessor(Process):
                 6. complete the task
         '''
         signal.signal(signal.SIGTERM, self.sigTerm)
+        signal.signal(signal.SIGINT, self.sigTerm)
 
         while self.keepRunning:
             try:
                 self.taskReceive()
+            except TerminationException:
+                logging.debug("Received termination exception")
+                break
             except select.error as e:
                 if e[0] != errno.EINTR:
                     raise
@@ -158,6 +164,10 @@ class HSN2TaskProcessor(Process):
             self.taskError('PARAMS', exc.message)
             ch.basic_ack(delivery_tag=method.delivery_tag)
             self.taskClear()
+        except ObjectStoreTerminationException as exc:
+            ch.basic_reject(delivery_tag=method.delivery_tag, requeue=True)
+            self.taskClear()
+            raise TerminationException()
         except ObjectStoreException as exc:
             self.taskError('OBJ_STORE', exc.message)
             ch.basic_ack(delivery_tag=method.delivery_tag)
@@ -274,7 +284,7 @@ class HSN2TaskProcessor(Process):
         @param arrived: The signal that arrived.
         @param stack: The current call stack.
         '''
-        if sig == signal.SIGTERM:
+        if sig in [signal.SIGTERM, signal.SIGINT]:
             logging.debug("Received sig term.")
             self.keepRunning = False
             self.osAdapter.keepRunning = False

@@ -33,6 +33,10 @@ class NoBusException(Exception):
 class ObjectStoreException(Exception):
     pass
 
+class ObjectStoreTerminationException(ObjectStoreException):
+    pass
+
+
 
 class QueryStructure():
     '''
@@ -120,7 +124,7 @@ class HSN2ObjectStoreAdapter(object):
                     "ObjectRequest reply not received yet. Resending request")
                 pass
         if objResp is None:
-            raise ObjectStoreException(
+            raise ObjectStoreTerminationException(
                 "Termination of service while requesting objects.")
         return objResp
 
