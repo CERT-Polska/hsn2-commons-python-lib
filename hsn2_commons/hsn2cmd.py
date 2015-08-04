@@ -284,7 +284,7 @@ class CommandDispatcher(object):
                     attributes[att.name] = att.data_string
             if self.verbose:
                 for att in attributes.keys():
-                    print "   %s\t%s" % (att, attributes[att])
+                    print u"   %s\t%s" % (att, attributes[att])
             else:
                 for att in datetimeAttributes.keys():
                     attributes[att] = datetimeAttributes[att]
