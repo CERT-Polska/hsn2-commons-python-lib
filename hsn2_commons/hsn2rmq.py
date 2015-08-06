@@ -76,7 +76,15 @@ class RabbitMqBus(Bus):
                 data = bytearray(body, "utf-8")
                 body = bytes(data)
             return on_response(ch, method, properties, body)
-        self.channelFw.basic_consume(_pre_response, queue)
+        received = False
+        while not received:
+            method, properties, body = self.channelFw.basic_get(queue)
+            if not properties:
+                time.sleep(0.05)
+                continue
+            received = True
+            _pre_response(self.channelFw, method, properties, body)
+        #self.channelFw.basic_consume(_pre_response, queue)
 
     def _timeout_callback(self):
         '''
