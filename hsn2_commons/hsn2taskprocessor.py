@@ -28,11 +28,11 @@ from hsn2_commons import hsn2enumwrapper as enumwrap
 from hsn2_commons import hsn2objectwrapper as ow
 from hsn2_commons.hsn2bus import Bus
 from hsn2_commons.hsn2bus import BusException
+from hsn2_commons.hsn2bus import ShutdownException
 from hsn2_commons.hsn2bus import MismatchedCorrelationIdException
 from hsn2_commons.hsn2dsadapter import DataStoreException, HSN2DataStoreAdapter
 from hsn2_commons.hsn2objectwrapper import BadValueException
 from hsn2_commons.hsn2osadapter import ObjectStoreException
-from hsn2_commons.hsn2osadapter import ObjectStoreTerminationException
 from hsn2_commons.hsn2osadapter import HSN2ObjectStoreAdapter
 from hsn2_protobuf import Process_pb2
 import select
@@ -112,8 +112,8 @@ class HSN2TaskProcessor(Process):
         while self.keepRunning:
             try:
                 self.taskReceive()
-            except TerminationException:
-                logging.debug("Received termination exception")
+            except ShutdownException:
+                logging.info("Process shutting down")
                 break
             except select.error as e:
                 if e[0] != errno.EINTR:
@@ -164,10 +164,6 @@ class HSN2TaskProcessor(Process):
             self.taskError('PARAMS', exc.message)
             ch.basic_ack(delivery_tag=method.delivery_tag)
             self.taskClear()
-        except ObjectStoreTerminationException as exc:
-            ch.basic_reject(delivery_tag=method.delivery_tag, requeue=True)
-            self.taskClear()
-            raise TerminationException()
         except ObjectStoreException as exc:
             self.taskError('OBJ_STORE', exc.message)
             ch.basic_ack(delivery_tag=method.delivery_tag)
@@ -184,12 +180,17 @@ class HSN2TaskProcessor(Process):
             self.taskError('INPUT', exc.message)
             ch.basic_ack(delivery_tag=method.delivery_tag)
             self.taskClear()
+        except ShutdownException:
+            ch.basic_reject(delivery_tag=method.delivery_tag, requeue=True)
+            self.taskClear()
+            raise
 
     def taskReceive(self):
         '''
         Receive a task from the service queue and assign it to the current task.
         '''
-        self.fwBus._wait_for_response(self.serviceQueue, self.process)
+        self.fwBus.configure_listener(self.serviceQueue, self.process)
+        self.fwBus.blocking_consume()
 
     def taskAccept(self):
         '''
