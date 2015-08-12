@@ -200,9 +200,10 @@ class RabbitMqBus(Bus):
         Closes the connection with the bus.
         '''
         self._keep_running = False
-        if self.connection is not None:
-            self.connection.close()
+        connection = self.connection
         self.connection = None
+        if connection is not None:
+            connection.close()
         self.channelFw = None
         self.channelOs = None
 

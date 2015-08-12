@@ -18,11 +18,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from multiprocessing.process import active_children
-from os import path
-from time import sleep
+import time
 import logging
 import signal
 import sys
+import os
 
 from hsn2_commons import argparsealiases as argparse
 
@@ -136,7 +136,7 @@ class HSN2Service(object):
         Mostly sleeps unless all task processors fail.
         '''
         while(self.keepRunning):
-            sleep(1)
+            time.sleep(1)
             if len(active_children()) == 0 and self.keepRunning:
                 logging.error("All children exited.")
                 self.keepRunning = False
@@ -145,11 +145,16 @@ class HSN2Service(object):
         '''
         Handles stopping active task processors.
         '''
-        while (self.processList):
-            p = self.processList.pop()
+        for p in self.processList:
             p.terminate()
+        stop_started = time.time()
         while active_children():
-            sleep(1)
+            logging.debug("Waiting for children to stop")
+            if time.time() - stop_started > 10:
+                for p in self.processList:
+                    os.kill(p.pid, signal.SIGKILL)
+            time.sleep(1)
+        self.processList = []
         logging.info("Service %s stopped" % self.serviceName)
 
     def signalHandler(self, arrived, stack):
@@ -168,8 +173,8 @@ class HSN2Service(object):
         @param modulePath: The path to the module.
         @return: The imported module.
         '''
-        (moduleDir, moduleFile) = path.split(modulePath)
-        (moduleName, moduleExt) = path.splitext(moduleFile)
+        (moduleDir, moduleFile) = os.path.split(modulePath)
+        (moduleName, moduleExt) = os.path.splitext(moduleFile)
         if moduleExt != ".py":
             logging.error(
                 "Module isn't a python file. Extension is '%s'" % moduleExt)
