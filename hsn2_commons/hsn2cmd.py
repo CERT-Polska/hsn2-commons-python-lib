@@ -245,6 +245,13 @@ class CommandDispatcher(object):
         else:
             print "Unexpected response received (type=%s)." % mtype
 
+    @staticmethod
+    def process(val):
+        try:
+	    return unicode(val)
+        except ValueError:
+            return repr(val)
+
     def _command_job_details(self):
         '''
         Retrieves details about a specific job.
@@ -284,7 +291,7 @@ class CommandDispatcher(object):
                     attributes[att.name] = att.data_string
             if self.verbose:
                 for att in attributes.keys():
-                    print "   %s\t%s" % (att, attributes[att])
+                    print u"   %s\t%s" % (self.process(att), self.process(attributes[att]))
             else:
                 for att in datetimeAttributes.keys():
                     attributes[att] = datetimeAttributes[att]
@@ -556,3 +563,9 @@ class CommandDispatcher(object):
         'workflow': workflowCommands,
         'config': configCommands
     }
+    @staticmethod
+    def process(val):
+        try:
+            return unicode(val)
+        except ValueError:
+            return repr(val)
