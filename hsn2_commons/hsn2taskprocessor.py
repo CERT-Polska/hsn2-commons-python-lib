@@ -22,16 +22,18 @@ from time import sleep
 import logging
 import signal
 
-from pika.exceptions import AMQPError
+from pika.exceptions import AMQPError, AMQPConnectionError
 
 from hsn2_commons import hsn2enumwrapper as enumwrap
 from hsn2_commons import hsn2objectwrapper as ow
 from hsn2_commons.hsn2bus import Bus
 from hsn2_commons.hsn2bus import BusException
+from hsn2_commons.hsn2bus import ShutdownException
 from hsn2_commons.hsn2bus import MismatchedCorrelationIdException
 from hsn2_commons.hsn2dsadapter import DataStoreException, HSN2DataStoreAdapter
 from hsn2_commons.hsn2objectwrapper import BadValueException
-from hsn2_commons.hsn2osadapter import ObjectStoreException, HSN2ObjectStoreAdapter
+from hsn2_commons.hsn2osadapter import ObjectStoreException
+from hsn2_commons.hsn2osadapter import HSN2ObjectStoreAdapter
 from hsn2_protobuf import Process_pb2
 import select
 import errno
@@ -105,10 +107,14 @@ class HSN2TaskProcessor(Process):
                 6. complete the task
         '''
         signal.signal(signal.SIGTERM, self.sigTerm)
+        signal.signal(signal.SIGINT, self.sigTerm)
 
         while self.keepRunning:
             try:
                 self.taskReceive()
+            except ShutdownException:
+                logging.info("Process shutting down")
+                break
             except select.error as e:
                 if e[0] != errno.EINTR:
                     raise
@@ -174,12 +180,23 @@ class HSN2TaskProcessor(Process):
             self.taskError('INPUT', exc.message)
             ch.basic_ack(delivery_tag=method.delivery_tag)
             self.taskClear()
+        except ShutdownException:
+            ch.basic_reject(delivery_tag=method.delivery_tag, requeue=True)
+            self.taskClear()
+            raise
 
     def taskReceive(self):
         '''
         Receive a task from the service queue and assign it to the current task.
         '''
-        self.fwBus._wait_for_response(self.serviceQueue, self.process)
+        self.fwBus.configure_listener(self.serviceQueue, self.process)
+        try:
+            self.fwBus.blocking_consume()
+        except AMQPConnectionError:
+            if self.keepRunning or self.currentTask:
+                raise
+            else:
+                logging.debug("Task processor shutting down while blocked on consume")
 
     def taskAccept(self):
         '''
@@ -274,10 +291,12 @@ class HSN2TaskProcessor(Process):
         @param arrived: The signal that arrived.
         @param stack: The current call stack.
         '''
-        if sig == signal.SIGTERM:
+        if sig in [signal.SIGTERM, signal.SIGINT]:
             logging.debug("Received sig term.")
             self.keepRunning = False
             self.osAdapter.keepRunning = False
+            if self.currentTask is None:
+                self.fwBus.close()
 
     def paramToBool(self, param):
         '''

@@ -21,7 +21,9 @@ import logging
 
 from hsn2_commons import hsn2enumwrapper as enumwrap
 from hsn2_commons import hsn2objectwrapper as ow
-from hsn2_commons.hsn2bus import BadMessageException, BusTimeoutException
+from hsn2_commons.hsn2bus import BadMessageException
+from hsn2_commons.hsn2bus import BusTimeoutException
+from hsn2_commons.hsn2bus import ShutdownException
 from hsn2_commons.hsn2rmq import RabbitMqBus
 from hsn2_protobuf import ObjectStore_pb2
 
@@ -32,6 +34,7 @@ class NoBusException(Exception):
 
 class ObjectStoreException(Exception):
     pass
+
 
 
 class QueryStructure():
@@ -120,8 +123,7 @@ class HSN2ObjectStoreAdapter(object):
                     "ObjectRequest reply not received yet. Resending request")
                 pass
         if objResp is None:
-            raise ObjectStoreException(
-                "Termination of service while requesting objects.")
+            raise ShutdownException("Termination of service while requesting objects.")
         return objResp
 
     def objectsGet(self, jobId, objects):

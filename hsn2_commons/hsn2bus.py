@@ -26,6 +26,9 @@ class BusException(Exception):
 class BusTimeoutException(Exception):
     pass
 
+class ShutdownException(Exception):
+    pass
+
 
 class BadMessageException(Exception):
     expected = None
@@ -49,11 +52,15 @@ class MismatchedCorrelationIdException(Exception):
 class Bus(object):
     "Abstract Bus class"
 
+    @property
+    def keep_running(self):
+        raise NotImplementedError("This method need to be implemented in an appropriate class!")
+
     def openChannels(self):
         '''
         Connects to the bus.
         '''
-        raise Exception(
+        raise NotImplementedError(
             "This method need to be implemented in an appropriate class!")
 
     def sendCommand(self, dest, mtype, command, sync=0, timeout=0):
@@ -66,7 +73,7 @@ class Bus(object):
         @param timeout: How long to wait for a reply. Only used if sync = 1.
         @return: A tuple containing the message type as a string and the message body in that order.
         '''
-        raise Exception(
+        raise NotImplementedError(
             "This method need to be implemented in an appropriate class!")
 
     def _wait_for_response(self, queue, timeout=120):
@@ -76,21 +83,21 @@ class Bus(object):
         @param timeout: How long to wait in seconds.
         @return: a tuple (method, properties, body)
         '''
-        raise Exception(
+        raise NotImplementedError(
             "This method need to be implemented in an appropriate class!")
 
     def close(self):
         '''
         Closes the connection with the bus.
         '''
-        raise Exception(
+        raise NotImplementedError(
             "This method need to be implemented in an appropriate class!")
 
     def setFWQueue(self, queue):
         '''
         Sets the queue name (with priority notation) to be used for connecting to the framework.
         '''
-        raise Exception(
+        raise NotImplementedError(
             "This method need to be implemented in an appropriate class!")
 
     @staticmethod

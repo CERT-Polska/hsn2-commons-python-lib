@@ -27,6 +27,7 @@ from hsn2_commons.hsn2bus import Bus
 from hsn2_commons.hsn2bus import BusException
 from hsn2_commons.hsn2bus import BusTimeoutException
 from hsn2_commons.hsn2bus import MismatchedCorrelationIdException
+from hsn2_commons.hsn2bus import ShutdownException
 import time
 
 
@@ -47,6 +48,9 @@ class RabbitMqBus(Bus):
     resp_queue = None
     app_id = None
     corr_id = None
+    
+    queue_configurations = None
+    _keep_running = None
 
     def __init__(self, host="127.0.0.1", port=5672, app_id=None):
         '''
@@ -54,6 +58,8 @@ class RabbitMqBus(Bus):
         @param port: port on which the bus is available
         @param app_id: the name of the service using the adapter. Used for recognizing the console.
         '''
+        self._keep_running = True
+        self.queue_configurations = set()
         self.host = host
         self.port = 5672 if port is None else int(port)
         if app_id is None:
@@ -63,20 +69,38 @@ class RabbitMqBus(Bus):
         params = pika.ConnectionParameters(host=self.host, port=self.port)
         self.connection = pika.BlockingConnection(params)
         self.openChannels()
-
-    def _wait_for_response(self, queue, on_response):
+        
+    @property
+    def keep_running(self):
+        return self._keep_running
+        
+    def configure_listener(self, queue, on_response):
         '''
-        Wait for a message to appear on the queue.
+        Configure a listener for the queue.
         @param queue: The queue to monitor
         @param on_response: will be run, when message received.
-        @return: a tuple (method, properties, body)
         '''
-        def _pre_response(ch, method, properties, body):
-            if type(body) == unicode:
-                data = bytearray(body, "utf-8")
-                body = bytes(data)
-            return on_response(ch, method, properties, body)
-        self.channelFw.basic_consume(_pre_response, queue)
+        if not queue in self.queue_configurations:
+            on_response = self._wrap_callback(on_response)
+            self.channelFw.basic_consume(on_response, queue)
+            self.queue_configurations.add(queue)
+            
+    @staticmethod
+    def _convert_body(body):
+        if type(body) == unicode:
+            data = bytearray(body, "utf-8")
+            body = bytes(data)
+        return body
+    
+    @classmethod
+    def _wrap_callback(cls, callback):
+        def _wrapped(ch, method, properties, body):
+            body = cls._convert_body(body)
+            return callback(ch, method, properties, body)
+        return _wrapped
+        
+    def blocking_consume(self):
+        self.channelFw.start_consuming()
 
     def _timeout_callback(self):
         '''
@@ -155,6 +179,9 @@ class RabbitMqBus(Bus):
                     break
                 if time.time() - wait_start > timeout:
                     raise BusTimeoutException()
+                if not self.keep_running:
+                    raise ShutdownException("Shutdown while awaiting synchronous response")
+                time.sleep(0.05)
             
             return self.on_response(channel, method, properties, body)
 
@@ -164,9 +191,7 @@ class RabbitMqBus(Bus):
             raise MismatchedCorrelationIdException(
                 "Sent:%s, Received:%s" % (self.corr_id, properties.correlation_id))
         self.mtype = properties.type
-        if type(body) == unicode:
-            data = bytearray(body, "utf-8")
-            body = bytes(data)
+        body = self._convert_body(body)
         self.body = body
         return properties.type, body
 
@@ -174,10 +199,11 @@ class RabbitMqBus(Bus):
         '''
         Closes the connection with the bus.
         '''
-
-        if self.connection is not None:
-            self.connection.close()
+        self._keep_running = False
+        connection = self.connection
         self.connection = None
+        if connection is not None:
+            connection.close()
         self.channelFw = None
         self.channelOs = None
 
