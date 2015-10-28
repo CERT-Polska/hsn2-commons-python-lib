@@ -129,6 +129,9 @@ class RabbitMqBus(Bus):
         except Exception as e:
             logging.exception(e)
             raise BusException("Can't connect to RabbitMQ")
+        else:
+            logging.info("Connection with %s:%d successful" %
+                         (self.host, self.port))
 
     def sendCommand(self, dest, mtype, command, sync=0, timeout=0):
         '''
