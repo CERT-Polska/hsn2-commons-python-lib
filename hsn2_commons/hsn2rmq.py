@@ -48,7 +48,7 @@ class RabbitMqBus(Bus):
     resp_queue = None
     app_id = None
     corr_id = None
-    
+
     queue_configurations = None
     _keep_running = None
 
@@ -69,11 +69,11 @@ class RabbitMqBus(Bus):
         params = pika.ConnectionParameters(host=self.host, port=self.port)
         self.connection = pika.BlockingConnection(params)
         self.openChannels()
-        
+
     @property
     def keep_running(self):
         return self._keep_running
-        
+
     def configure_listener(self, queue, on_response):
         '''
         Configure a listener for the queue.
@@ -84,21 +84,21 @@ class RabbitMqBus(Bus):
             on_response = self._wrap_callback(on_response)
             self.channelFw.basic_consume(on_response, queue)
             self.queue_configurations.add(queue)
-            
+
     @staticmethod
     def _convert_body(body):
-        if type(body) == unicode:
+        if isinstance(body, unicode):
             data = bytearray(body, "utf-8")
             body = bytes(data)
         return body
-    
+
     @classmethod
     def _wrap_callback(cls, callback):
         def _wrapped(ch, method, properties, body):
             body = cls._convert_body(body)
             return callback(ch, method, properties, body)
         return _wrapped
-        
+
     def blocking_consume(self):
         self.channelFw.start_consuming()
 
@@ -182,7 +182,7 @@ class RabbitMqBus(Bus):
                 if not self.keep_running:
                     raise ShutdownException("Shutdown while awaiting synchronous response")
                 time.sleep(0.05)
-            
+
             return self.on_response(channel, method, properties, body)
 
     def on_response(self, ch, method, properties, body):
