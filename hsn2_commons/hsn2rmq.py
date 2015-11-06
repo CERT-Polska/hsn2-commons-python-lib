@@ -66,6 +66,11 @@ class RabbitMqBus(Bus):
             raise NoAppIdException
         else:
             self.app_id = app_id
+        self.connect()
+
+    def connect(self):
+        if self.connection:
+            raise ValueError("Close connection before reopening it")
         params = pika.ConnectionParameters(host=self.host, port=self.port)
         self.connection = pika.BlockingConnection(params)
         self.openChannels()

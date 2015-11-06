@@ -111,7 +111,7 @@ class HSN2ObjectStoreAdapter(object):
                 if enumwrap.getValue(objResp, "ResponseType", objResp.type) == "FAILURE":
                     logging.error("Failed ObjectRequest: " + str(objResp))
                     break
-                logging.debug(objResp)
+                # logging.debug(objResp)
                 waiting = False
             except BusTimeoutException:
                 if tries >= self.maxTries:
